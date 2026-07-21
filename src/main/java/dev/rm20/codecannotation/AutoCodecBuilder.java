@@ -10,210 +10,212 @@ import com.hypixel.hytale.codec.builder.BuilderField;
 import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.validation.Validator;
+import com.hypixel.hytale.codec.validation.ValidatorCache;
 import com.hypixel.hytale.codec.validation.Validators;
+import com.hypixel.hytale.math.shape.*;
+import com.hypixel.hytale.protocol.*;
 import com.hypixel.hytale.server.core.asset.common.CommonAssetValidator;
+import com.hypixel.hytale.server.core.codec.LayerEntryCodec;
+import com.hypixel.hytale.server.core.codec.PairCodec;
 import com.hypixel.hytale.server.core.codec.ProtocolCodecs;
+import com.hypixel.hytale.server.core.codec.ShapeCodecs;
 import dev.rm20.codecannotation.Annotations.CodecAnnotations;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 public class AutoCodecBuilder {
 
-    private static final Map<Class<?>, Codec<?>> REGISTRY = new HashMap<>();
+    private static final Map<Class<?>, Codec<?>> REGISTRY = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Codec<?>> PRIMITIVE_CODECS = new HashMap<>();
+
+    static {
+        // Built-in Primitives
+        PRIMITIVE_CODECS.put(String.class, Codec.STRING);
+        PRIMITIVE_CODECS.put(Integer.TYPE, Codec.INTEGER);
+        PRIMITIVE_CODECS.put(Integer.class, Codec.INTEGER);
+        PRIMITIVE_CODECS.put(Boolean.TYPE, Codec.BOOLEAN);
+        PRIMITIVE_CODECS.put(Boolean.class, Codec.BOOLEAN);
+        PRIMITIVE_CODECS.put(Float.TYPE, Codec.FLOAT);
+        PRIMITIVE_CODECS.put(Float.class, Codec.FLOAT);
+        PRIMITIVE_CODECS.put(Double.TYPE, Codec.DOUBLE);
+        PRIMITIVE_CODECS.put(Double.class, Codec.DOUBLE);
+        PRIMITIVE_CODECS.put(Long.TYPE, Codec.LONG);
+        PRIMITIVE_CODECS.put(Long.class, Codec.LONG);
+        PRIMITIVE_CODECS.put(Byte.TYPE, Codec.BYTE);
+        PRIMITIVE_CODECS.put(Byte.class, Codec.BYTE);
+        PRIMITIVE_CODECS.put(Short.TYPE, Codec.SHORT);
+        PRIMITIVE_CODECS.put(Short.class, Codec.SHORT);
+
+        // Standard Utility & BSON Types
+        PRIMITIVE_CODECS.put(org.bson.BsonDocument.class, Codec.BSON_DOCUMENT);
+        PRIMITIVE_CODECS.put(UUID.class, Codec.UUID_STRING);
+        PRIMITIVE_CODECS.put(java.nio.file.Path.class, Codec.PATH);
+        PRIMITIVE_CODECS.put(java.time.Instant.class, Codec.INSTANT);
+        PRIMITIVE_CODECS.put(java.time.Duration.class, Codec.DURATION);
+        PRIMITIVE_CODECS.put(java.util.logging.Level.class, Codec.LOG_LEVEL);
+
+        // Protocol Codecs
+        PRIMITIVE_CODECS.put(Color.class, ProtocolCodecs.COLOR);
+        PRIMITIVE_CODECS.put(Direction.class, ProtocolCodecs.DIRECTION);
+        PRIMITIVE_CODECS.put(ColorLight.class, ProtocolCodecs.COLOR_LIGHT);
+        PRIMITIVE_CODECS.put(Color[].class, ProtocolCodecs.COLOR_ARRAY);
+        PRIMITIVE_CODECS.put(ColorAlpha.class, ProtocolCodecs.COLOR_AlPHA);
+        PRIMITIVE_CODECS.put(GameMode.class, ProtocolCodecs.GAMEMODE);
+        PRIMITIVE_CODECS.put(Size.class, ProtocolCodecs.SIZE);
+        PRIMITIVE_CODECS.put(Range.class, ProtocolCodecs.RANGE);
+        PRIMITIVE_CODECS.put(Rangeb.class, ProtocolCodecs.RANGEB);
+        PRIMITIVE_CODECS.put(Rangef.class, ProtocolCodecs.RANGEF);
+        PRIMITIVE_CODECS.put(RangeVector2f.class, ProtocolCodecs.RANGE_VECTOR2F);
+        PRIMITIVE_CODECS.put(RangeVector3f.class, ProtocolCodecs.RANGE_VECTOR3F);
+        PRIMITIVE_CODECS.put(InitialVelocity.class, ProtocolCodecs.INITIAL_VELOCITY);
+        PRIMITIVE_CODECS.put(UVMotion.class, ProtocolCodecs.UV_MOTION);
+        PRIMITIVE_CODECS.put(IntersectionHighlight.class, ProtocolCodecs.INTERSECTION_HIGHLIGHT);
+        PRIMITIVE_CODECS.put(SavedMovementStates.class, ProtocolCodecs.SAVED_MOVEMENT_STATES);
+        PRIMITIVE_CODECS.put(ItemAnimation.class, ProtocolCodecs.ITEM_ANIMATION_CODEC);
+        PRIMITIVE_CODECS.put(ChangeStatBehaviour.class, ProtocolCodecs.CHANGE_STAT_BEHAVIOUR_CODEC);
+        PRIMITIVE_CODECS.put(AccumulationMode.class, ProtocolCodecs.ACCUMULATION_MODE_CODEC);
+        PRIMITIVE_CODECS.put(EasingType.class, ProtocolCodecs.EASING_TYPE_CODEC);
+        PRIMITIVE_CODECS.put(ChangeVelocityType.class, ProtocolCodecs.CHANGE_VELOCITY_TYPE_CODEC);
+        PRIMITIVE_CODECS.put(RailPoint.class, ProtocolCodecs.RAIL_POINT_CODEC);
+        PRIMITIVE_CODECS.put(RailConfig.class, ProtocolCodecs.RAIL_CONFIG_CODEC);
+
+        PRIMITIVE_CODECS.put(Shape.class, ShapeCodecs.SHAPE);
+        PRIMITIVE_CODECS.put(Box.class, ShapeCodecs.BOX);
+        PRIMITIVE_CODECS.put(Ellipsoid.class, ShapeCodecs.ELLIPSOID);
+        PRIMITIVE_CODECS.put(Cylinder.class, ShapeCodecs.CYLINDER);
+        PRIMITIVE_CODECS.put(OriginShape.class, ShapeCodecs.ORIGIN_SHAPE);
+        
+        // Primitive & Object Array Codecs
+        PRIMITIVE_CODECS.put(String[].class, Codec.STRING_ARRAY);
+        PRIMITIVE_CODECS.put(byte[].class, Codec.BYTE_ARRAY);
+        PRIMITIVE_CODECS.put(int[].class, Codec.INT_ARRAY);
+        PRIMITIVE_CODECS.put(float[].class, Codec.FLOAT_ARRAY);
+        PRIMITIVE_CODECS.put(double[].class, Codec.DOUBLE_ARRAY);
+        PRIMITIVE_CODECS.put(long[].class, Codec.LONG_ARRAY);
+
+        PRIMITIVE_CODECS.put(LayerEntryCodec.class, LayerEntryCodec.CODEC);
+        PRIMITIVE_CODECS.put(PairCodec.IntegerPair.class, PairCodec.IntegerPair.CODEC);
+        PRIMITIVE_CODECS.put(PairCodec.IntegerStringPair.class, PairCodec.IntegerStringPair.CODEC);
+
+        // Boxed Primitive Array Fallbacks
+        PRIMITIVE_CODECS.put(Integer[].class, new ArrayCodec<>(Codec.INTEGER, Integer[]::new));
+        PRIMITIVE_CODECS.put(Float[].class, new ArrayCodec<>(Codec.FLOAT, Float[]::new));
+        PRIMITIVE_CODECS.put(Double[].class, new ArrayCodec<>(Codec.DOUBLE, Double[]::new));
+        PRIMITIVE_CODECS.put(Long[].class, new ArrayCodec<>(Codec.LONG, Long[]::new));
+    }
 
     public static <T> void register(Class<T> clazz, Codec<T> codec) {
         REGISTRY.put(clazz, codec);
     }
 
-    @SuppressWarnings("unchecked")
+    /**
+     * Builds a standard object BuilderCodec.
+     */
     public static <T> BuilderCodec<T> create(Class<T> clazz, Supplier<T> creator) {
-        var builder = BuilderCodec.builder(clazz, creator);
+        BuilderCodec.Builder<T> builder = BuilderCodec.builder(clazz, creator);
 
-        for (Field field : clazz.getDeclaredFields()) {
+        for (Field field : getDeclaredFieldsUpToSuper(clazz)) {
             if (!field.isAnnotationPresent(CodecAnnotations.Field.class)) continue;
 
-            field.setAccessible(true);
             CodecAnnotations.Field meta = field.getAnnotation(CodecAnnotations.Field.class);
             String key = meta.value().isEmpty() ? field.getName() : meta.value();
-
             Codec<?> baseCodec = resolveCodecForType(field.getType());
-            builder = appendField(builder, field, key, baseCodec, meta);
+
+            MethodHandle getter = unreflectGetter(field);
+            MethodHandle setter = unreflectSetter(field);
+
+            BuilderField.FieldBuilder<T, Object, BuilderCodec.Builder<T>> fieldBuilder = builder.append(
+                    new KeyedCodec<>(key, (Codec<Object>) baseCodec),
+                    (instance, value) -> invokeSetter(setter, instance, value),
+                    (instance) -> invokeGetter(getter, instance)
+            );
+
+            applyFieldValidatorsAndDoc(fieldBuilder, field, meta);
+            builder = fieldBuilder.add();
         }
 
         return builder.build();
     }
 
-    @SuppressWarnings("unchecked")
+    /**
+     * Builds a JsonAsset AssetBuilderCodec
+     */
     public static <T extends JsonAsset<String>> AssetBuilderCodec<String, T> createAsset(
             Class<T> clazz,
             Supplier<T> creator,
             Field idField,
             Field dataField
     ) {
-        idField.setAccessible(true);
-        dataField.setAccessible(true);
+        MethodHandle idGetter = unreflectGetter(idField);
+        MethodHandle idSetter = unreflectSetter(idField);
+        MethodHandle dataGetter = unreflectGetter(dataField);
+        MethodHandle dataSetter = unreflectSetter(dataField);
+
         var builder = AssetBuilderCodec.builder(
                 clazz,
                 creator,
                 Codec.STRING,
-                (instance, id) -> {
-                    try {
-                        idField.set(instance, id);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                },
-                (instance) -> {
-                    try {
-                        return (String) idField.get(instance);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                },
-                (instance, data) -> {
-                    try {
-                        dataField.set(instance, data);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                },
-                (instance) -> {
-                    try {
-                        return (AssetExtraInfo.Data) dataField.get(instance);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                }
+                (instance, id) -> invokeSetter(idSetter, instance, id),
+                (instance) -> (String) invokeGetter(idGetter, instance),
+                (instance, data) -> invokeSetter(dataSetter, instance, data),
+                (instance) -> (AssetExtraInfo.Data) invokeGetter(dataGetter, instance)
         );
 
-        List<Field> allFields = new ArrayList<>();
-        Class<?> currentClass = clazz;
-        while (currentClass != null && currentClass != Object.class) {
-            allFields.addAll(Arrays.asList(currentClass.getDeclaredFields()));
-            currentClass = currentClass.getSuperclass();
-        }
-
-        for (Field field : allFields) {
+        for (Field field : getDeclaredFieldsUpToSuper(clazz)) {
             if (!field.isAnnotationPresent(CodecAnnotations.Field.class)) continue;
 
-            field.setAccessible(true);
             CodecAnnotations.Field meta = field.getAnnotation(CodecAnnotations.Field.class);
             String key = meta.value().isEmpty() ? field.getName() : meta.value();
-
             Codec<Object> baseCodec = (Codec<Object>) resolveCodecForType(field.getType());
+
+            MethodHandle getter = unreflectGetter(field);
+            MethodHandle setter = unreflectSetter(field);
 
             var context = builder.appendInherited(
                     new KeyedCodec<>(key, baseCodec),
-                    (instance, value) -> {
-                        try {
-                            field.set(instance, value);
-                        } catch (Exception e) {
-                            throw new RuntimeException(e);
-                        }
-                    },
-                    (instance) -> {
-                        try {
-                            return field.get(instance);
-                        } catch (Exception e) {
-                            throw new RuntimeException(e);
-                        }
-                    },
-                    (instance, parent) -> {
-                        try {
-                            field.set(instance, field.get(parent));
-                        } catch (Exception e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
+                    (instance, value) -> invokeSetter(setter, instance, value),
+                    (instance) -> invokeGetter(getter, instance),
+                    (instance, parent) -> invokeSetter(setter, instance, invokeGetter(getter, parent))
             );
 
-            if (!meta.doc().isEmpty()) context.documentation(meta.doc());
-
-            if (field.isAnnotationPresent(CodecAnnotations.Min.class)) {
-                int minVal = field.getAnnotation(CodecAnnotations.Min.class).value();
-                context.addValidator((Validator<Object>) (Validator<?>) Validators.min(minVal));
-            }
-
-            if (field.isAnnotationPresent(CodecAnnotations.Max.class)) {
-                int maxVal = field.getAnnotation(CodecAnnotations.Max.class).value();
-                context.addValidator((Validator<Object>) (Validator<?>) Validators.max(maxVal));
-            }
-
-            if (field.isAnnotationPresent(CodecAnnotations.UniqueArray.class)) {
-                context.addValidator((Validator<Object>) (Validator<?>) Validators.uniqueInArray());
-            }
-
-            if (field.isAnnotationPresent(CodecAnnotations.NonNull.class)) {
-                context.addValidator(Validators.nonNull());
-            }
-
-            if (field.isAnnotationPresent(CodecAnnotations.NonEmpty.class)) {
-                context.addValidator((Validator<Object>) (Validator<?>) Validators.nonEmptyString());
-            }
-
-            if (field.isAnnotationPresent(CodecAnnotations.CustomValidator.class)) {
-                CodecAnnotations.CustomValidator validatorMeta = field.getAnnotation(CodecAnnotations.CustomValidator.class);
-                String assetType = validatorMeta.type();
-                String assetPath = validatorMeta.value();
-
-                try {
-                    // Dynamically instantiate the validator on the fly
-                    Validator<?> dynamicValidator = new CommonAssetValidator(assetType, assetPath);
-                    context.addValidator((Validator<Object>) dynamicValidator);
-                } catch (Exception e) {
-                    throw new RuntimeException("Failed to dynamically create CommonAssetValidator for path: " + assetPath, e);
-                }
-            }
-
+            applyFieldValidatorsAndDoc(context, field, meta);
             builder = context.add();
         }
 
         return builder.build();
     }
 
+    /**
+     * Shared logic to process annotations (documentation + validators) on fields.
+     */
     @SuppressWarnings("unchecked")
-    private static <V, T> BuilderCodec.Builder<T> appendField(
-            BuilderCodec.Builder<T> builder,
+    private static <B extends BuilderCodec.BuilderBase<?, B>> void applyFieldValidatorsAndDoc(
+            BuilderField.FieldBuilder<?, Object, B> context,
             Field field,
-            String key,
-            Codec<V> codec,
             CodecAnnotations.Field meta
     ) {
-        BuilderField.FieldBuilder<T, V, BuilderCodec.Builder<T>> context = builder.append(
-                new KeyedCodec<>(key, codec),
-                (instance, value) -> {
-                    try {
-                        field.set(instance, value);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                },
-                (instance) -> {
-                    try {
-                        return (V) field.get(instance);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-        );
-
         if (!meta.doc().isEmpty()) {
             context.documentation(meta.doc());
         }
 
         if (field.isAnnotationPresent(CodecAnnotations.Min.class)) {
             int minVal = field.getAnnotation(CodecAnnotations.Min.class).value();
-            context.addValidator((Validator<V>) Validators.min(minVal));
+            context.addValidator((Validator<Object>) (Validator<?>) Validators.min(minVal));
         }
 
         if (field.isAnnotationPresent(CodecAnnotations.Max.class)) {
             int maxVal = field.getAnnotation(CodecAnnotations.Max.class).value();
             context.addValidator((Validator<Object>) (Validator<?>) Validators.max(maxVal));
         }
+
         if (field.isAnnotationPresent(CodecAnnotations.UniqueArray.class)) {
-            context.addValidator((Validator<V>) Validators.uniqueInArray());
+            context.addValidator((Validator<Object>) (Validator<?>) Validators.uniqueInArray());
         }
 
         if (field.isAnnotationPresent(CodecAnnotations.NonNull.class)) {
@@ -221,85 +223,50 @@ public class AutoCodecBuilder {
         }
 
         if (field.isAnnotationPresent(CodecAnnotations.NonEmpty.class)) {
-            context.addValidator((Validator<V>) Validators.nonEmptyString());
+            context.addValidator((Validator<Object>) (Validator<?>) Validators.nonEmptyString());
         }
 
         if (field.isAnnotationPresent(CodecAnnotations.CustomValidator.class)) {
             CodecAnnotations.CustomValidator validatorMeta = field.getAnnotation(CodecAnnotations.CustomValidator.class);
-            String assetType = validatorMeta.type();
-            String assetPath = validatorMeta.value();
-
             try {
-                // Dynamically instantiate the validator on the fly
-                Validator<?> dynamicValidator = new CommonAssetValidator(assetType, assetPath);
+                Validator<?> dynamicValidator = new CommonAssetValidator(validatorMeta.type(), validatorMeta.value());
                 context.addValidator((Validator<Object>) dynamicValidator);
             } catch (Exception e) {
-                throw new RuntimeException("Failed to dynamically create CommonAssetValidator for path: " + assetPath, e);
+                throw new RuntimeException("Failed to dynamically create CommonAssetValidator for path: " + validatorMeta.value(), e);
             }
         }
-        return context.add();
+
+        if (field.isAnnotationPresent(CodecAnnotations.ValidateAssetKey.class)) {
+            CodecAnnotations.ValidateAssetKey assetKeyMeta = field.getAnnotation(CodecAnnotations.ValidateAssetKey.class);
+
+            try {
+                Class<?> targetClass = assetKeyMeta.target();
+                Field cacheField = targetClass.getDeclaredField(assetKeyMeta.fieldName());
+                cacheField.setAccessible(true);
+
+                Object cacheObj = cacheField.get(null);
+
+                if (cacheObj instanceof ValidatorCache<?> validatorCache) {
+                    Validator<?> validator = switch (assetKeyMeta.type()) {
+                        case MAP_KEY -> validatorCache.getMapKeyValidator();
+                        case MAP_VALUE -> validatorCache.getMapValueValidator();
+                        case VALUE -> validatorCache.getValidator();
+                    };
+
+                    context.addValidator((Validator<Object>) validator);
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to attach AssetKeyValidator from " + assetKeyMeta.target().getName(), e);
+            }
+        }
     }
 
+    @SuppressWarnings("unchecked")
     private static Codec<?> resolveCodecForType(Class<?> type) {
-        // Primitives
-        if (type == String.class) return Codec.STRING;
-        if (type == Integer.TYPE || type == Integer.class) return Codec.INTEGER;
-        if (type == Boolean.TYPE || type == Boolean.class) return Codec.BOOLEAN;
-        if (type == Float.TYPE || type == Float.class) return Codec.FLOAT;
-        if (type == Double.TYPE || type == Double.class) return Codec.DOUBLE;
-        if (type == Long.TYPE || type == Long.class) return Codec.LONG;
-        if (type == Byte.TYPE || type == Byte.class) return Codec.BYTE;
-        if (type == Short.TYPE || type == Short.class) return Codec.SHORT;
+        Codec<?> primitiveCodec = PRIMITIVE_CODECS.get(type);
+        if (primitiveCodec != null) return primitiveCodec;
 
-        // Utility
-        if (type == java.util.UUID.class) return Codec.UUID_STRING;
-        if (type == java.nio.file.Path.class) return Codec.PATH;
-        if (type == java.time.Instant.class) return Codec.INSTANT;
-        if (type == java.time.Duration.class) return Codec.DURATION;
-
-        // Protocol
-        if (type == com.hypixel.hytale.protocol.Color.class)
-            return com.hypixel.hytale.server.core.codec.ProtocolCodecs.COLOR;
-        if (type == com.hypixel.hytale.protocol.Direction.class) return ProtocolCodecs.DIRECTION;
-        if (type == com.hypixel.hytale.protocol.ColorLight.class) return ProtocolCodecs.COLOR_LIGHT;
-        if (type == com.hypixel.hytale.protocol.Color[].class) return ProtocolCodecs.COLOR_ARRAY;
-        if (type == com.hypixel.hytale.protocol.ColorAlpha.class)
-            return ProtocolCodecs.COLOR_AlPHA;
-        if (type == com.hypixel.hytale.protocol.GameMode.class)
-            return ProtocolCodecs.GAMEMODE;
-        if (type == com.hypixel.hytale.protocol.Size.class) return ProtocolCodecs.SIZE;
-        if (type == com.hypixel.hytale.protocol.Range.class) return ProtocolCodecs.RANGE;
-        if (type == com.hypixel.hytale.protocol.Rangeb.class) return ProtocolCodecs.RANGEB;
-        if (type == com.hypixel.hytale.protocol.Rangef.class) return ProtocolCodecs.RANGEF;
-        if (type == com.hypixel.hytale.protocol.RangeVector2f.class) return ProtocolCodecs.RANGE_VECTOR2F;
-        if (type == com.hypixel.hytale.protocol.RangeVector3f.class) return ProtocolCodecs.RANGE_VECTOR3F;
-        if (type == com.hypixel.hytale.protocol.InitialVelocity.class) return ProtocolCodecs.INITIAL_VELOCITY;
-        if (type == com.hypixel.hytale.protocol.UVMotion.class) return ProtocolCodecs.UV_MOTION;
-        if (type == com.hypixel.hytale.protocol.IntersectionHighlight.class)
-            return ProtocolCodecs.INTERSECTION_HIGHLIGHT;
-        if (type == com.hypixel.hytale.protocol.SavedMovementStates.class) return ProtocolCodecs.SAVED_MOVEMENT_STATES;
-        if (type == com.hypixel.hytale.protocol.ItemAnimation.class) return ProtocolCodecs.ITEM_ANIMATION_CODEC;
-        if (type == com.hypixel.hytale.protocol.ChangeStatBehaviour.class)
-            return ProtocolCodecs.CHANGE_STAT_BEHAVIOUR_CODEC;
-        if (type == com.hypixel.hytale.protocol.AccumulationMode.class) return ProtocolCodecs.ACCUMULATION_MODE_CODEC;
-        if (type == com.hypixel.hytale.protocol.EasingType.class) return ProtocolCodecs.EASING_TYPE_CODEC;
-        if (type == com.hypixel.hytale.protocol.ChangeVelocityType.class)
-            return ProtocolCodecs.CHANGE_VELOCITY_TYPE_CODEC;
-        if (type == com.hypixel.hytale.protocol.RailPoint.class) return ProtocolCodecs.RAIL_POINT_CODEC;
-        if (type == com.hypixel.hytale.protocol.RailConfig.class) return ProtocolCodecs.RAIL_CONFIG_CODEC;
-
-        if (type == String[].class) return Codec.STRING_ARRAY;
-        if (type == int[].class) return Codec.INT_ARRAY;
-        if (type == float[].class) return Codec.FLOAT_ARRAY;
-        if (type == double[].class) return Codec.DOUBLE_ARRAY;
-        if (type == long[].class) return Codec.LONG_ARRAY;
-        if (type == byte[].class) return Codec.BYTE_ARRAY;
-        if (type == Integer[].class) return new ArrayCodec<>(Codec.INTEGER, Integer[]::new);
-        if (type == Float[].class) return new ArrayCodec<>(Codec.FLOAT, Float[]::new);
-        if (type == Double[].class) return new ArrayCodec<>(Codec.DOUBLE, Double[]::new);
-        if (type == Long[].class) return new ArrayCodec<>(Codec.LONG, Long[]::new);
-
-        // Custom
+        // Custom Registered Codecs
         if (REGISTRY.containsKey(type)) {
             return REGISTRY.get(type);
         }
@@ -320,7 +287,7 @@ public class AutoCodecBuilder {
             Class<?> componentType = type.getComponentType();
             if (REGISTRY.containsKey(componentType)) {
                 Codec<Object> elementCodec = (Codec<Object>) REGISTRY.get(componentType);
-                return new ArrayCodec<Object>(
+                return new ArrayCodec<>(
                         elementCodec,
                         size -> (Object[]) java.lang.reflect.Array.newInstance(componentType, size)
                 );
@@ -328,5 +295,53 @@ public class AutoCodecBuilder {
         }
 
         throw new IllegalArgumentException("Registry missing mapped conversion format for Type: " + type.getName());
+    }
+
+    private static List<Field> getDeclaredFieldsUpToSuper(Class<?> startClass) {
+        List<Field> allFields = new ArrayList<>();
+        Class<?> currentClass = startClass;
+        while (currentClass != null && currentClass != Object.class) {
+            for (Field field : currentClass.getDeclaredFields()) {
+                if (!Modifier.isStatic(field.getModifiers())) {
+                    allFields.add(field);
+                }
+            }
+            currentClass = currentClass.getSuperclass();
+        }
+        return allFields;
+    }
+
+    private static MethodHandle unreflectGetter(Field field) {
+        try {
+            field.setAccessible(true);
+            return MethodHandles.lookup().unreflectGetter(field);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException("Failed to create getter handle for field: " + field.getName(), e);
+        }
+    }
+
+    private static MethodHandle unreflectSetter(Field field) {
+        try {
+            field.setAccessible(true);
+            return MethodHandles.lookup().unreflectSetter(field);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException("Failed to create setter handle for field: " + field.getName(), e);
+        }
+    }
+
+    private static Object invokeGetter(MethodHandle handle, Object instance) {
+        try {
+            return handle.invoke(instance);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed invoking getter for instance: " + instance, e);
+        }
+    }
+
+    private static void invokeSetter(MethodHandle handle, Object instance, Object value) {
+        try {
+            handle.invoke(instance, value);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed setting value: " + value + " on instance: " + instance, e);
+        }
     }
 }

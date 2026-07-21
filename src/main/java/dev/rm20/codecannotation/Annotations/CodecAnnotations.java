@@ -43,4 +43,30 @@ public final class CodecAnnotations {
         String value();
     }
 
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface ValidateAssetKey {
+
+        /**
+         * The class that holds the static VALIDATOR_CACHE field (e.g., DamageCause.class or ElementAsset.class).
+         */
+        Class<?> target();
+
+        /**
+         * The field name on the target class. Defaults to "VALIDATOR_CACHE".
+         */
+        String fieldName() default "VALIDATOR_CACHE";
+
+        /**
+         * Target target type for maps.
+         */
+        TargetType type() default TargetType.VALUE;
+
+        enum TargetType {
+            VALUE,
+            MAP_KEY,
+            MAP_VALUE
+        }
+    }
+
 }
