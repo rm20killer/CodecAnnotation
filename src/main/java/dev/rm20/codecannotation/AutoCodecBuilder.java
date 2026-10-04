@@ -65,7 +65,7 @@ public class AutoCodecBuilder {
         PRIMITIVE_CODECS.put(Direction.class, ProtocolCodecs.DIRECTION);
         PRIMITIVE_CODECS.put(ColorLight.class, ProtocolCodecs.COLOR_LIGHT);
         PRIMITIVE_CODECS.put(Color[].class, ProtocolCodecs.COLOR_ARRAY);
-        PRIMITIVE_CODECS.put(ColorAlpha.class, ProtocolCodecs.COLOR_AlPHA);
+        PRIMITIVE_CODECS.put(ColorAlpha.class, ProtocolCodecs.COLOR_ALPHA);
         PRIMITIVE_CODECS.put(GameMode.class, ProtocolCodecs.GAMEMODE);
         PRIMITIVE_CODECS.put(Size.class, ProtocolCodecs.SIZE);
         PRIMITIVE_CODECS.put(Range.class, ProtocolCodecs.RANGE);
