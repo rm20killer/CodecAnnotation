@@ -1,6 +1,11 @@
 package dev.rm20.codecannotation.Annotations;
 
-import java.lang.annotation.*;
+import com.hypixel.hytale.codec.schema.metadata.ui.UIEditorPreview;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 public final class CodecAnnotations {
     private CodecAnnotations() {}
@@ -67,6 +72,42 @@ public final class CodecAnnotations {
             MAP_KEY,
             MAP_VALUE
         }
+    }
+
+    /**
+     * Hides the field from the Hytale Asset Editor UI.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface DisplayMode {
+        Mode value();
+
+        enum Mode {
+            NORMAL,
+            COMPACT,
+            HIDDEN
+        }
+    }
+
+    /**
+     * Overrides the display name of the property in the Asset Editor.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface PropertyTitle {
+        String value();
+    }
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface EditorPreview {
+        UIEditorPreview.PreviewType value();
+    }
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface SectionStart {
+        String value();
     }
 
 }

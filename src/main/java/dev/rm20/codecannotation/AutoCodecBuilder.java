@@ -9,6 +9,10 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.builder.BuilderField;
 import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.hypixel.hytale.codec.schema.metadata.ui.UIDisplayMode;
+import com.hypixel.hytale.codec.schema.metadata.ui.UIEditorPreview;
+import com.hypixel.hytale.codec.schema.metadata.ui.UIEditorSectionStart;
+import com.hypixel.hytale.codec.schema.metadata.ui.UIPropertyTitle;
 import com.hypixel.hytale.codec.validation.Validator;
 import com.hypixel.hytale.codec.validation.ValidatorCache;
 import com.hypixel.hytale.codec.validation.Validators;
@@ -204,6 +208,34 @@ public class AutoCodecBuilder {
             context.documentation(meta.doc());
         }
 
+        // Meta data
+
+        if (field.isAnnotationPresent(CodecAnnotations.PropertyTitle.class)) {
+            CodecAnnotations.PropertyTitle titleMeta = field.getAnnotation(CodecAnnotations.PropertyTitle.class);
+            context.metadata(new UIPropertyTitle(titleMeta.value()));
+        }
+
+        if (field.isAnnotationPresent(CodecAnnotations.DisplayMode.class)) {
+            CodecAnnotations.DisplayMode modeMeta = field.getAnnotation(CodecAnnotations.DisplayMode.class);
+            switch (modeMeta.value()) {
+                case NORMAL -> context.metadata(UIDisplayMode.NORMAL);
+                case COMPACT -> context.metadata(UIDisplayMode.COMPACT);
+                case HIDDEN -> context.metadata(UIDisplayMode.HIDDEN);
+            }
+        }
+
+
+        if (field.isAnnotationPresent(CodecAnnotations.EditorPreview.class)) {
+            CodecAnnotations.EditorPreview previewMeta = field.getAnnotation(CodecAnnotations.EditorPreview.class);
+            context.metadata(new UIEditorPreview(previewMeta.value()));
+        }
+
+        if (field.isAnnotationPresent(CodecAnnotations.SectionStart.class)) {
+            CodecAnnotations.SectionStart sectionMeta = field.getAnnotation(CodecAnnotations.SectionStart.class);
+            context.metadata(new UIEditorSectionStart(sectionMeta.value()));
+        }
+
+        // Validator
         if (field.isAnnotationPresent(CodecAnnotations.Min.class)) {
             int minVal = field.getAnnotation(CodecAnnotations.Min.class).value();
             context.addValidator((Validator<Object>) (Validator<?>) Validators.min(minVal));
